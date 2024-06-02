@@ -2,12 +2,15 @@ from dotenv import load_dotenv
 from groq import Groq
 import os
 from PIL import ImageGrab
+import cv2
+import pyperclip
 
 load_dotenv()
 
 groq_client = Groq(
     api_key=os.getenv("GROQ_API_KEY"),
 )
+web_cam = cv2.VideoCapture(0)
 
 def get_response_from_groq(message,model="llama3-8b-8192"):
     conversation = [{
@@ -63,15 +66,31 @@ def determine_action(prompt):
     return response.content
 
 def take_screenshot():
-    path = 'screenshots/screenshot.jpg'
-    ImageGrab.grab().save(path,quality=15)
-    return path
+    path = 'screenshot.jpg'
+    try:
+        screenshot = ImageGrab.grab()
+        rgb_screenshot = screenshot.convert("RGB")
+        rgb_screenshot.save(path,quality=15)
+        return path
+    except Exception as e:
+        return f"An error occurred: {e}"
 
 def capture_web_cam():
-    pass
+    if not web_cam.isOpened():
+        print("Error: Could not open webcam.")
+        exit()
+
+    path = 'webcam.jpg'
+    ret, frame = web_cam.read()
+    cv2.imwrite(path, frame)
 
 def get_clipboard_content():
-    pass
+    clipboard_content =  pyperclip.paste()
+    if isinstance(clipboard_content, str):
+        return clipboard_content
+    else:
+        print("The clipboard content is not a text.")
+        return None
 
 while True:
     user_input = input("Enter your prompt: ")
