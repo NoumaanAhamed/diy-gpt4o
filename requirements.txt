@@ -3,3 +3,4 @@ groq
 pillow
 opencv-python
 pyperclip
+google-generativeai
