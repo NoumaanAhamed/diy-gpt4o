@@ -8,6 +8,8 @@ import google.generativeai as genai
 from io import BytesIO
 import requests
 from openai import OpenAI
+import pyaudio
+import pyttsx3
 
 load_dotenv()
 
@@ -17,6 +19,8 @@ groq_client = Groq(
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 web_cam = cv2.VideoCapture(0)
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+engine = pyttsx3.init()
+
 
 sys_msg = ( 
     'You are a multi-modal AI voice assistant. Your user may or may not have attached a photo for context '
@@ -172,7 +176,6 @@ def generate_image(prompt):
 
     print("Image saved successfully.")
 
-
 def vision_prompt(prompt, image_path):
     img = Image.open(image_path)
     prompt = (
@@ -183,6 +186,46 @@ def vision_prompt(prompt, image_path):
         f'assistant who will respond to the user. \nUSER PROMPT: {prompt}')
     response = model.generate_content([prompt, img])
     return response.text
+
+def speak(text):
+    player_stream = pyaudio.PyAudio().open(
+        format=pyaudio.paInt16,
+        channels=1,
+        rate=24000,
+        output=True
+    )
+    stream_start = False
+
+    with openai_client.audio.speech.with_streaming_response.create(
+        model='tts-1',
+        voice='onyx',
+        response_format='pcm',
+        input=text
+    ) as response:
+        silence_threshold = 0.01
+
+        for chunk in response.iter_bytes(chunk_size=1024):
+            if stream_start:
+                player_stream.write(chunk)
+            else:
+                if max(chunk) > silence_threshold:
+                    player_stream.write(chunk)
+                    stream_start = True
+
+def speak_offline(text):
+    # Initialize the TTS engine
+    
+    # Set properties before adding anything to speak
+    engine.setProperty('rate', 150)    # Speed of speech
+    engine.setProperty('volume', 0.9)  # Volume level (0.0 to 1.0)
+
+    # Pass the text to the engine
+    engine.say(text)
+    
+    # Wait for the speech to complete
+    engine.runAndWait()
+
+    # engine.stop()
 
 while True:
     user_input = input("Enter your prompt: ")
@@ -214,6 +257,7 @@ while True:
 
     response = get_response_from_groq(user_input, visual_context)
     print(f'AI Response: {response}')
-    
+    speak(response)
+    # speak_offline(response)
 
 

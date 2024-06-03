@@ -5,3 +5,6 @@ opencv-python
 pyperclip
 google-generativeai
 openai
+pyaudio
+faster-whisper
+pyttsx3
