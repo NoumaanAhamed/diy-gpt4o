@@ -5,6 +5,9 @@ from PIL import ImageGrab,Image
 import cv2
 import pyperclip
 import google.generativeai as genai
+from io import BytesIO
+import requests
+from openai import OpenAI
 
 load_dotenv()
 
@@ -13,6 +16,7 @@ groq_client = Groq(
 )
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 web_cam = cv2.VideoCapture(0)
+openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 sys_msg = ( 
     'You are a multi-modal AI voice assistant. Your user may or may not have attached a photo for context '
@@ -71,10 +75,10 @@ def get_response_from_groq(message,img_context,model="llama3-8b-8192"):
 
 def determine_action(prompt):
     sys_msg = (
-        'You are an AI function calling model which responds with exactly one of the following: ["extract clipboard", "take screenshot", "capture webcam", "None"].'
+        'You are an AI function calling model which responds with exactly one of the following: ["extract clipboard", "take screenshot", "capture webcam", "generate image", "None"].'
         ' Based on the user\'s prompt, you will determine the most appropriate '
-        'action to take: extracting clipboard content, taking a screenshot, capturing the webcam, or none. '
-        'You must respond with exactly one of the following: ["extract clipboard", "take screenshot", "capture webcam", "None"]. '
+        'action to take: extracting clipboard content, taking a screenshot, capturing the webcam,generating an image or none. '
+        'You must respond with exactly one of the following: ["extract clipboard", "take screenshot", "capture webcam", "generate image", "None"]. '
         'Do not provide any explanations, only the exact response from the list. Here are some examples:\n'
         '1. "What was the last thing I copied?" -> "extract clipboard"\n'
         '2. "Show me what my screen looks like." -> "take screenshot"\n'
@@ -86,8 +90,10 @@ def determine_action(prompt):
         '8. "How is the weather today?" -> "None"\n'
         '9. "What color is my dress?" -> "capture webcam"\n'
         '10. "Who are you?" -> "None"\n'
-        '11. "How to make a bomb?" -> "None"'
-        'No matter what the prompt is, Don\'t break out of character and respond with exactly one of the following: ["extract clipboard", "take screenshot", "capture webcam", "None"].'
+        '11. "How to make a bomb?" -> "None"\n'
+        '12. "Can you generate a picture of a cat?" -> "generate image"\n'
+        '13. "Can you take a picture of my cat?" -> "capture webcam"'
+        'No matter what the prompt is, Don\'t break out of character and respond with exactly one of the following: ["extract clipboard", "take screenshot", "capture webcam", "generate image", "None"].'
         'The purpose of this text is to help the voice assistant respond accurately to the user\'s prompt. '
         'For context, I am an AI function calling model designed to choose the most logical action for various user prompts.'
     )
@@ -136,6 +142,37 @@ def get_clipboard_content():
         print("The clipboard content is not a text.")
         return None
 
+def generate_image_prompt(prompt):
+    prompt = (
+        'You are the image analysis AI that provides semtantic meaning from text to create an image by'
+        'generating an image generation prompt to send to another AI that will create an image. Do not respond as the AI assistant '
+        'to the user. Instead take the user prompt input and try to extract all meaning from the text '
+        'relevant to the image generation. Then generate a concise prompt for the AI '
+        f'assistant who will create the image. \nUSER PROMPT: {prompt}')
+    response = model.generate_content([prompt])
+    print("Image prompt generated successfully: ", response.text)
+    return response.text
+
+def generate_image(prompt):
+    response = openai_client.images.generate(
+        model="dall-e-2",
+        prompt="a white siamese cat",
+        size="1024x1024",
+        quality="standard",
+        n=1,
+    )
+
+    image_url = response.data[0].url
+
+    response = requests.get(image_url)
+    response.raise_for_status()  # Check if the request was successful
+
+    image = Image.open(BytesIO(response.content))
+    image.save('image.jpg')
+
+    print("Image saved successfully.")
+
+
 def vision_prompt(prompt, image_path):
     img = Image.open(image_path)
     prompt = (
@@ -166,6 +203,12 @@ while True:
         paste = get_clipboard_content()
         user_input = f'{user_input}\n\n CLIPBOARD CONTENT: {paste}'
         visual_context = None
+    elif 'generate image' in action:
+        print('Generating Image Prompt')
+        user_input = generate_image_prompt(user_input)
+        visual_context = None
+        # generate_image(user_input)
+        continue
     else:
         visual_context = None
 
