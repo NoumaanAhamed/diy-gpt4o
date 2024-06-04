@@ -161,7 +161,7 @@ def generate_image_prompt(prompt):
         'You are the image analysis AI that provides semtantic meaning from text to create an image by'
         'generating an image generation prompt to send to another AI that will create an image. Do not respond as the AI assistant '
         'to the user. Instead take the user prompt input and try to extract all meaning from the text '
-        'relevant to the image generation. Then generate a concise prompt for the AI '
+        'relevant to the image generation. Generate the concise prompt without any explanation for the AI '
         f'assistant who will create the image. \nUSER PROMPT: {prompt}')
     response = model.generate_content([prompt])
     print("Image prompt generated successfully: ", response.text)
@@ -170,7 +170,7 @@ def generate_image_prompt(prompt):
 def generate_image(prompt):
     response = openai_client.images.generate(
         model="dall-e-2",
-        prompt="a white siamese cat",
+        prompt=prompt,
         size="1024x1024",
         quality="standard",
         n=1,
@@ -185,6 +185,8 @@ def generate_image(prompt):
     image.save('image.jpg')
 
     print("Image saved successfully.")
+
+    return image.show()
 
 def vision_prompt(prompt, image_path):
     img = Image.open(image_path)
@@ -268,14 +270,14 @@ while True:
         print('Generating Image Prompt')
         user_input = generate_image_prompt(user_input)
         visual_context = None
-        # generate_image(user_input)
+        generate_image(user_input)
         continue
     else:
         visual_context = None
 
     response = get_response_from_groq(user_input, visual_context)
     print(f'AI Response: {response}')
-    speak(response)
+    # speak(response)
     # speak_offline(response)
 
 

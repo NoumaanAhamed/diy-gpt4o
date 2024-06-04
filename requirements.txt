@@ -8,3 +8,5 @@ openai
 pyaudio
 faster-whisper
 pyttsx3
+SpeechRecognition
+numpy
