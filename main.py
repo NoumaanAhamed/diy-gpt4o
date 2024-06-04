@@ -10,6 +10,8 @@ import requests
 from openai import OpenAI
 import pyaudio
 import pyttsx3
+from faster_whisper import WhisperModel
+
 
 load_dotenv()
 
@@ -20,7 +22,16 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 web_cam = cv2.VideoCapture(0)
 openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 engine = pyttsx3.init()
-
+num_cores = os.cpu_count()
+whisper_size = 'base'
+whisper_model_path = r'C:\Users\nouma\OneDrive\Desktop\repos\windows\gpt4o-clone-win\models\models--Systran--faster-whisper-base\snapshots\ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66'
+whisper_model  = WhisperModel(
+                              device='cpu',
+                              compute_type='auto',
+                              cpu_threads=num_cores//2,
+                              num_workers=num_cores//2,
+                              model_size_or_path=whisper_model_path or whisper_size,
+                              )
 
 sys_msg = ( 
     'You are a multi-modal AI voice assistant. Your user may or may not have attached a photo for context '
@@ -75,7 +86,6 @@ def get_response_from_groq(message,img_context,model="llama3-8b-8192"):
     response = chat_completion.choices[0].message
     conversation.append(response)
     return response.content
-
 
 def determine_action(prompt):
     sys_msg = (
@@ -226,6 +236,14 @@ def speak_offline(text):
     engine.runAndWait()
 
     # engine.stop()
+
+def speech_to_text(audio_path):
+    segments, info = whisper_model.transcribe(audio_path)
+    print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
+    text = ''.join(segment.text for segment in segments)
+    return text
+
+# print(speech_to_text(r"C:\Users\nouma\OneDrive\Desktop\repos\windows\gpt4o-clone-win\audio.m4a"))
 
 while True:
     user_input = input("Enter your prompt: ")
